@@ -9,5 +9,6 @@ def list():
         print(
 '''    Name: {}
     Path: {}
-'''.format(plugin.name, plugin.path))
+    Description: {}
+'''.format(plugin.name, plugin.path, plugin.description))
     return True

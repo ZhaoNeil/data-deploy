@@ -57,7 +57,7 @@ def _build_ssh_config(hostname, ssh_params):
     Returns:
         TemporaryFile containing the ssh config.'''
     if callable(ssh_params):
-            ssh_params = ssh_params(node)
+        ssh_params = ssh_params(node)
         if not isinstance(ssh_params, dict):
             raise ValueError('ssh_params must be a dict, mapping ssh options to values. E.g: {{"IdentityFile": "/some/key.rsa", "IdentitiesOnly": "yes", "Port": 22}}')
         conf = sshconf.empty_ssh_config_file()

@@ -1,6 +1,6 @@
 import data_deploy.internal.util.fs as fs
 import data_deploy.internal.util.importer as importer
-
+from data_deploy.internal.util.printer import *
 
 class Plugin(object):
     '''Container to hold a path reference to a plugin file. It can also load the plugin.'''
@@ -34,7 +34,21 @@ class Plugin(object):
         if not self._loaded:
             self.load()
         return self._module
-    
+
+    @property
+    def description(self):
+        try:
+            return self.module.description()
+        except AttributeError as e:
+            printw('Module "{}" had an error while obtaining description: {}'.format(self._name, e))
+            return 'Module "{}" had an error while obtaining description: {}'.format(self._name, e)
+
+    def parse(self, args):
+        return self.module.parse(args)
+
+    def execute(self, reservation, key_path, paths, dest, silent, *args, **kwargs):
+        return self.module.execute(reservation, key_path, paths, dest, silent, *args, **kwargs)
+
 
     def change_name(self, newname):
         self._name = newname
@@ -43,7 +57,7 @@ class Plugin(object):
     def load(self):
         if self._loaded:
             raise RuntimeError('Cannot load plugin "{}": Already loaded.'.format(self._name))
-        self._module = importer.import_full_path(abs_path)
+        self._module = importer.import_full_path(self._path)
         return self._module
 
 

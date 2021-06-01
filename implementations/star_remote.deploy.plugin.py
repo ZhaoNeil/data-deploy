@@ -1,6 +1,8 @@
+import argparse
 import concurrent.futures
 import subprocess
 
+import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
 import data_deploy.internal.util.location as loc
@@ -36,7 +38,7 @@ def _pick_admin(reservation, admin=None):
 
 
 
-def _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, strategy, silent, retries):
+def _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, silent):
     if not silent:
         print('Transferring data...')
 
@@ -75,10 +77,22 @@ exit(0)
     return False
 
 
+def description():
+    return "Deploys data by sending all data from the local machine to one remote (the 'admin') in parallel. The admin then sends all data in parallel to all other nodes. Works well if local->local connections don't bottleneck."
 
-def deploy(reservation, *args, connectionwrapper=None, key_path=None, admin_id=None, paths=[], dest=defaults.remote_dir(), strategy=defaults.strategy(), silent=False, retries=defaults.retries(), **kwargs):
+
+def parse(args):
+    parser = argparse.ArgumentParser(prog='...')
+    parser.add_argument('--admin', metavar='id', dest='admin_id', type=int, default=None, help='ID of the node that will be the primary or admin node.')
+    args = parser.parse_args(args)
+    return True, [], {'admin_id': args.admin_id}
+
+
+def execute(reservation, key_path, paths, dest, silent, *args, connectionwrapper=None, **kwargs):
+    connectionwrappers = kwargs.get('connectionwrappers')
+    admin_id = kwargs.get('admin_id')
+
     admin_node, _ = _pick_admin(reservation, admin=admin_id)
-
     use_local_connections = connectionwrapper == None
     if use_local_connections: # We did not get any connections, so we must make them
         ssh_kwargs = {'IdentitiesOnly': 'yes', 'StrictHostKeyChecking': 'no'}
@@ -90,7 +104,7 @@ def deploy(reservation, *args, connectionwrapper=None, key_path=None, admin_id=N
         if not connectionwrapper.open:
             raise ValueError('Provided connection is not open.')
 
-    retval = _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, strategy, silent, retries)
+    retval = _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, silent)
     if not use_local_connections:
         _close_connections(connectionwrappers)
     return retval

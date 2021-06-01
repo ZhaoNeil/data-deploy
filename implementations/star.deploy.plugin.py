@@ -1,6 +1,8 @@
+import argparse
 import concurrent.futures
 import subprocess
 
+import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
 import data_deploy.internal.util.location as loc
@@ -33,7 +35,20 @@ def _deploy_internal(wrappers, reservation, key_path, paths, dest, strategy, sil
             return False
 
 
-def deploy(reservation, *args, connectionwrappers=None, key_path=None, admin_id=None, paths=[], dest=defaults.remote_dir(), strategy=defaults.strategy(), silent=False, retries=defaults.retries(), **kwargs):
+def description():
+    return "Deploys data by sending all data from the local machine to all remotes in parallel. Works well if bandwidth and local->remote connections don't bottleneck."
+
+
+def parse(args):
+    parser = argparse.ArgumentParser(prog='...')
+    # We have no extra arguments to add here.
+    args = parser.parse_args(args)
+    return True, [], {}
+
+
+def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
+    connectionwrappers = kwargs.get('connectionwrappers')
+
     use_local_connections = connectionwrappers == None
     if use_local_connections: # We did not get any connections, so we must make them
         ssh_kwargs = {'IdentitiesOnly': 'yes', 'StrictHostKeyChecking': 'no'}
