@@ -7,6 +7,9 @@ import thirdparty.sshconf as sshconf
 import logging
 import remoto
 
+from data_deploy.internal.util.printer import *
+
+
 class RemotoSSHWrapper(object):
     '''Simple wrapper containing a remoto connection and the file it is using as ssh config.'''
     def __init__(self, connection, ssh_config=None):
@@ -58,13 +61,13 @@ def _build_ssh_config(hostname, ssh_params):
         TemporaryFile containing the ssh config.'''
     if callable(ssh_params):
         ssh_params = ssh_params(node)
-        if not isinstance(ssh_params, dict):
-            raise ValueError('ssh_params must be a dict, mapping ssh options to values. E.g: {{"IdentityFile": "/some/key.rsa", "IdentitiesOnly": "yes", "Port": 22}}')
-        conf = sshconf.empty_ssh_config_file()
-        conf.add(hostname, **ssh_params)
-        tmpfile = tempfile.NamedTemporaryFile()
-        conf.write(tmpfile.name)
-        return tmpfile
+    if not isinstance(ssh_params, dict):
+        raise ValueError('ssh_params must be a dict, mapping ssh options to values. E.g: {{"IdentityFile": "/some/key.rsa", "IdentitiesOnly": "yes", "Port": 22}}')
+    conf = sshconf.empty_ssh_config_file()
+    conf.add(hostname, **ssh_params)
+    tmpfile = tempfile.NamedTemporaryFile()
+    conf.write(tmpfile.name)
+    return tmpfile
 
 
 def _build_conn(hostname, loggername, silent, ssh_configpath=None):
@@ -118,7 +121,7 @@ def get_wrapper(node, hostname, ssh_params=None, loggername=None, silent=False):
         ssh_params = ssh_params(node)
 
     ssh_config = _build_ssh_config(hostname, ssh_params) if ssh_params else None
-    conn = _build_conn(hostname, loggername, silent, ssh_configpath=ssh_config.name)
+    conn = _build_conn(hostname, loggername, silent, ssh_configpath=ssh_config.name if ssh_config else None)
     return RemotoSSHWrapper(conn, ssh_config=ssh_config)
 
 
@@ -135,14 +138,14 @@ def get_wrappers(nodes, hostnames, ssh_params=None, loggername=None, parallel=Tr
         silent (optional bool): If set, connections are silent (except when reporting errors).
 
     Returns:
-        `list`, with `RemotoSSHWrapper` elements and possibly `None` elements. Each `None` indicates a failure to connect with the provided node on the input nodes at the same index.'''
+        `dict(metareserve.Node, RemotoSSHWrapper)`, Maps metareserve.Node to open remoto connection wrapper. Wrapper can be `None`, indicating failure to connect to key node'''
     hostnames = hostnames if isinstance(hostnames, dict) else {x: hostnames(x) for x in nodes}
     if parallel:
         with concurrent.futures.ThreadPoolExecutor(max_workers=len(nodes)) as executor:
-            futures_get_wrappers = [executor.submit(get_wrapper, x, hostnames[x], ssh_params=ssh_params, loggername=loggername, silent=silent) for x in nodes]
-            return [x.result() for x in futures_get_wrappers]
+            futures_get_wrappers = {x: executor.submit(get_wrapper, x, hostnames[x], ssh_params=ssh_params, loggername=loggername, silent=silent) for x in nodes}
+            return {k: v.result() for k,v in futures_get_wrappers.items()}
     else:
-        return [get_wrapper(x, hostnames[x], ssh_params=ssh_params, loggername=loggername, silent=silent) for x in nodes]
+        return {x: get_wrapper(x, hostnames[x], ssh_params=ssh_params, loggername=loggername, silent=silent) for x in nodes}
 
 
 def close_wrappers(wrappers, parallel=True):

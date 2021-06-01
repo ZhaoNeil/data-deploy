@@ -2,6 +2,8 @@ import argparse
 import concurrent.futures
 import subprocess
 
+import remoto
+
 import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
@@ -18,7 +20,7 @@ def _merge_kwargs(x, y):
     return z
 
 
-def _deploy_internal(wrappers, reservation, key_path, paths, dest, strategy, silent, retries):
+def _execute_internal(wrappers, reservation, key_path, paths, dest, silent):
     if not silent:
         print('Transferring data...')
 
@@ -29,10 +31,13 @@ def _deploy_internal(wrappers, reservation, key_path, paths, dest, strategy, sil
             return False
 
         fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAX --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
-        futures_rsync = [(executor.submit(fun, path, node, wrapper) for node, wrapper in wrappers.items()) for path in paths]
+        futures_rsync = []
+        for path in paths:
+            futures_rsync += [executor.submit(fun, path, node, wrapper) for node, wrapper in wrappers.items()]
         if not all(x.result() for x in futures_rsync):
             printe('Could not tranfer data to some nodes.')
             return False
+        return True
 
 
 def description():
@@ -54,15 +59,14 @@ def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
         ssh_kwargs = {'IdentitiesOnly': 'yes', 'StrictHostKeyChecking': 'no'}
         if key_path:
             ssh_kwargs['IdentityFile'] = key_path
-
-        connectionwrappers = ssh_wrapper.get_wrappers(reservation.nodes, lambda node: node.ip_public, ssh_params=lambda node: _merge_kwargs(ssh_kwargs, {'User': x.extra_info['user']}), parallel=True, silent=silent)
+        connectionwrappers = ssh_wrapper.get_wrappers(reservation.nodes, lambda node: node.ip_public, ssh_params=lambda node: _merge_kwargs(ssh_kwargs, {'User': node.extra_info['user']}), parallel=True, silent=silent)
     else: # We received connections, need to check if they are valid.
         if len(connectionwrappers) != len(reservation):
             raise ValueError('Provided connections do not contain all nodes: reservation length={}, connections amount={}'.format(len(connectionwrappers), len(reservation)))
         if not all(x.open for x in connectionwrappers):
             raise ValueError('Some provided connections are closed.')
 
-    retval = _deploy_internal(connectionwrappers, reservation, key_path, paths, dest, strategy, silent, retries)
+    retval = _execute_internal(connectionwrappers, reservation, key_path, paths, dest, silent)
     if not use_local_connections:
         _close_connections(connectionwrappers)
     return retval

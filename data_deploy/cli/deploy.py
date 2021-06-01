@@ -12,7 +12,7 @@ def subparser(subparsers):
 
     deployparser.add_argument('--silent', help='If set, less boot output is shown.', action='store_true')
     deployparser.add_argument('plugin', metavar='name', type=str, help='Plugin to use for deployment. Use "data-deploy plugin" to list available plugins.')
-    deployparser.add_argument('args', metavar='args', nargs='+', help='Arguments for the plugin. Use "data-deploy <plugin_name> -- -h" to see possible arguments.')
+    deployparser.add_argument('args', metavar='args', nargs='*', help='Arguments for the plugin. Use "data-deploy <plugin_name> -- -h" to see possible arguments.')
     return [deployparser]
 
 
