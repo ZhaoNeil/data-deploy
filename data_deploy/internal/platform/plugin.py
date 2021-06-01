@@ -49,7 +49,7 @@ class Plugin(object):
 
     @staticmethod
     def basename(path):
-        return fs.basename()[:-len(Plugin.plugin_extension)]
+        return fs.basename(path[:-len(Plugin.plugin_extension)])
 
 
     def __str__(self):

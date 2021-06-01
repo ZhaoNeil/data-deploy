@@ -13,8 +13,8 @@ import data_deploy
 
 def _get_modules():
     import data_deploy.cli.deploy as deploy
-    import rados_deploy.cli.clean as clean
-    return [deploy, clean]
+    import data_deploy.cli.plugin as plugin
+    return [deploy, plugin]
 
 
 def generic_args(parser):

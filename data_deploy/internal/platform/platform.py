@@ -19,16 +19,17 @@ def search_plugin(path, name):
     return None
 
 
-def load_default_plugins(registrar):
+def register_default_plugins(registrar):
     for x in _ls_plugins(loc.implementation_dir()):
         registrar.register(x)
 
 
-def load_ud_plugins(registrar):
-    for x in _ls_plugins(loc.ud_plugin_dir()):
-        registrar.register(x)
+def register_ud_plugins(registrar):
+    if fs.isdir(loc.ud_plugin_dir()):
+        for x in _ls_plugins(loc.ud_plugin_dir()):
+            registrar.register(x)
 
 
 def register_plugins(registrar):
-    load_default_plugins(registrar)
-    load_ud_plugins(registrar)
+    register_default_plugins(registrar)
+    register_ud_plugins(registrar)

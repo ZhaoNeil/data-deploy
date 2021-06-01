@@ -6,7 +6,7 @@ def root():
 
 def implementation_dir():
     '''Path to basic deployment implementation directory.'''
-    return os.path.join(root(), 'implementation')
+    return os.path.join(root(), 'implementations')
 
 def ud_plugin_dir():
     '''Path to the user-defined plugin directory.'''

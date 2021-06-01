@@ -8,15 +8,19 @@ class Registrar(object):
 
 
     @property
-    def plugin_names(self):
-        return [x.name for x in self._register]
+    def names(self):
+        return [x for x in self._register.keys()]
+
+    @property
+    def plugins(self):
+        return [x for x in self._register.values()]
 
 
     def get(self, name):
         return self._register[name]
 
 
-    def register(path):
+    def register(self, path):
         '''Registers given path as a module.'''
         plugin = Plugin(path)
         if plugin.name in self._register:
