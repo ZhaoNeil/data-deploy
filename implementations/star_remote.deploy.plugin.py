@@ -2,6 +2,8 @@ import argparse
 import concurrent.futures
 import subprocess
 
+import remoto
+
 import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
@@ -42,34 +44,40 @@ def _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, si
     if not silent:
         print('Transferring data...')
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(wrappers)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(paths)) as executor:
         if not remoto.process.check(connectionwrapper.connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
             printe('Could not create data destination directory on admin node.')
             return False
 
         fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAX --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
-        futures_rsync = [(executor.submit(fun, path, node, wrapper) for node, wrapper in wrappers.items()) for path in paths]
+        futures_rsync = [executor.submit(fun, path, admin_node, connectionwrapper) for path in paths]
         if not all(x.result() for x in futures_rsync):
             printe('Could not transfer data to admin node.')
             return False
     star_nodes = [x for x in reservation.nodes if x != admin_node]
+    paths_remote = (fs.join(dest, fs.basename(path)) for path in paths)
     star_cmd = '''python3 -c "
 import concurrent.futures
 import subprocess
 hostnames = [{0}]
 sourcedir = '{1}'
+paths_remote = [{2}]
 with concurrent.futures.ThreadPoolExecutor(max_workers=len(hostnames)) as executor:
-    futures_mkdir = [executor.submit(subprocess.call, 'ssh {{}} "mkdir -p {{}}"'.format(hostname, sourcedir), shell=True) for x in hostnames]
+    futures_mkdir = [executor.submit(subprocess.call, 'ssh {{}} \\'mkdir -p {{}}\\''.format(x, sourcedir), shell=True) for x in hostnames]
     if not all(x.result() == 0 for x in futures_mkdir):
         print('Could not create data destination directory for all nodes.')
         exit(1)
-    futures_rsync = [executor.submit(subprocess.call, 'rsync -q -aHAX --inplace {{}} {{}}:{{}}'.format(sourcedir, hostname, sourcedir), shell=True) for hostname in hostnames]
-    if not all(x.result() for x in futures_rsync):
+    futures_rsync = [executor.submit(subprocess.call, 'rsync -q -aHAX --inplace {{}} {{}}:{{}}'.format(path, hostname, path), shell=True) for hostname in hostnames for path in paths_remote]
+    if not all(x.result() == 0 for x in futures_rsync):
         print('Could not transfer data to some nodes.')
         exit(1)
 exit(0)
 "
-'''.format(','.join("'{}'".format(x.hostname) for x in star_nodes), dest)
+'''.format(
+    ','.join("'{}'".format(x.hostname) for x in star_nodes),
+    dest,
+    ','.join("'{}'".format(x) for x in paths_remote))
+
     out, error, exitcode = remoto.process.check(connectionwrapper.connection, star_cmd, shell=True)
     if exitcode == 0:
         return True
