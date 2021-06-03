@@ -1,7 +1,7 @@
 from data_deploy.internal.platform.registrar import Registrar
 from data_deploy.internal.platform.platform import register_plugins
 
-def list():
+def show():
     registrar = Registrar()
     register_plugins(registrar)
     print('Found {} plugins.'.format(len(registrar)))

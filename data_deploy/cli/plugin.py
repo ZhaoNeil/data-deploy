@@ -3,7 +3,7 @@ import data_deploy.plugin as plugin
 from data_deploy.internal.util.printer import *
 
 
-'''CLI module to list plugins for this tool.'''
+'''CLI module to show plugins for this tool.'''
 
 def subparser(subparsers):
     '''Register subparser modules'''
@@ -20,4 +20,4 @@ def deploy_args_set(args):
     return args.command == 'plugin'
 
 def deploy(parsers, args):
-    return plugin.list()
+    return plugin.show()
