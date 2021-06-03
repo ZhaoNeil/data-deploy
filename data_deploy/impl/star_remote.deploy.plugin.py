@@ -39,7 +39,7 @@ def _pick_admin(reservation, admin=None):
 
 
 
-def _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent):
+def _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier):
     if not silent:
         print('Transferring data...')
 
@@ -99,7 +99,7 @@ def parse(args):
     return True, [], {'admin_id': args.admin_id}
 
 
-def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
+def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier, *args, **kwargs):
     connectionwrapper = kwargs.get('connectionwrapper')
     admin_id = kwargs.get('admin_id')
 
@@ -115,7 +115,7 @@ def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
         if not connectionwrapper.open:
             raise ValueError('Provided connection is not open.')
 
-    retval = _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent)
+    retval = _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier)
     if not use_local_connections:
         ssh_wrapper.close_wrappers([connectionwrapper])
     return retval

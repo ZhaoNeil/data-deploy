@@ -18,12 +18,15 @@ def _clean_dest(dest):
         raise ValueError(dest)
     return dest
 
-def deploy_cli(key_path=None, paths=[], dest=defaults.remote_dir(), silent=False, plugin=None, args=None):
+
+def deploy_cli(key_path=None, paths=[], dest=defaults.remote_dir(), silent=False, copy_multiplier=1, link_multiplier=1, plugin=None, args=None):
     '''Deploy data using the CLI. Loads plugin with given `plugin` name, parses args, executes.
     Args:
         key_path (optional str): If set, uses given key to connect to remote nodes.
         paths (optional list): Data sources to transport to remote nodes.
         silent (optional bool): If set, does not print so much.
+        copy_multiplier (optional int): If set to a value X, makes the dataset X times larger by adding X-1 copies for every file. Applied first.
+        link_multiplier (optional int): If set to a value X, makes the dataset X times larger by adding X-1 hardlinks for every file. Applied second.
         plugin (optinal str): Plugin name to load.
         args (optional list(str)): Arguments to parse with plugin.
 
@@ -50,10 +53,25 @@ def deploy_cli(key_path=None, paths=[], dest=defaults.remote_dir(), silent=False
         printw('No paths to data given.')
         return False
     dest = _clean_dest(dest)
-    return plugin.execute(reservation, key_path, paths, dest, silent, *args, **kwargs)
+    return plugin.execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier, *args, **kwargs)
 
 
-def deploy(reservation, key_path=None, paths=[], dest=defaults.remote_dir(), silent=False, plugin=None, *args, **kwargs):
+def deploy(reservation, key_path=None, paths=[], dest=defaults.remote_dir(), silent=False, copy_multiplier=1, link_multiplier=1, plugin=None, *args, **kwargs):
+    '''Deploy data. Loads plugin with given `plugin` name, executes.
+    Args:
+        key_path (optional str): If set, uses given key to connect to remote nodes.
+        paths (optional list): Data sources to transport to remote nodes.
+        silent (optional bool): If set, does not print so much.
+        copy_multiplier (optional int): If set to a value X, makes the dataset X times larger by adding X-1 copies for every file. Applied first.
+        link_multiplier (optional int): If set to a value X, makes the dataset X times larger by adding X-1 hardlinks for every file. Applied second.
+        plugin (optinal str): Plugin name to load.
+        args (optional list(str)): Arguments to pass to plugin.
+        kwargs (optional dict(str, any)): Keyword arguments to pass to plugin.
+
+    Returns:
+        `True` on success, `False` on failure.'''
+    if plugin == None:
+        raise ValueError('Caller must specify plugin to use to deploy data.')
     registrar = Registrar()
     register_plugins(registrar)
     print('Found {} plugins.'.format(len(registrar)))
@@ -68,4 +86,4 @@ def deploy(reservation, key_path=None, paths=[], dest=defaults.remote_dir(), sil
     dest = _clean_dest(dest)
     print('Cleaned dest: {}'.format(dest))
     plugin = registrar.get(plugin)
-    return plugin.execute(reservation, key_path, paths, dest, silent, *args, **kwargs)
+    return plugin.execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier, *args, **kwargs)

@@ -20,7 +20,7 @@ def _merge_kwargs(x, y):
     return z
 
 
-def _execute_internal(wrappers, reservation, key_path, paths, dest, silent):
+def _execute_internal(wrappers, reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier):
     if not silent:
         print('Transferring data...')
 
@@ -55,7 +55,7 @@ def parse(args):
     return True, [], {}
 
 
-def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
+def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier, *args, **kwargs):
     connectionwrappers = kwargs.get('connectionwrappers')
 
     use_local_connections = connectionwrappers == None
@@ -70,7 +70,7 @@ def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
         if not all(x.open for x in connectionwrappers):
             raise ValueError('Some provided connections are closed.')
 
-    retval = _execute_internal(connectionwrappers, reservation, key_path, paths, dest, silent)
+    retval = _execute_internal(connectionwrappers, reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier)
     if not use_local_connections:
         ssh_wrapper.close_wrappers(connectionwrappers)
     return retval
