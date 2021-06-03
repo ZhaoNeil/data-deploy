@@ -2,12 +2,12 @@ import concurrent.futures
 import tempfile
 import uuid
 
-import thirdparty.sshconf as sshconf
 
 import logging
 import remoto
 
 from data_deploy.internal.util.printer import *
+import data_deploy.thirdparty.sshconf as sshconf
 
 
 class RemotoSSHWrapper(object):

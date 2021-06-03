@@ -43,6 +43,15 @@ class Plugin(object):
             printw('Module "{}" had an error while obtaining description: {}'.format(self._name, e))
             return 'Module "{}" had an error while obtaining description: {}'.format(self._name, e)
 
+    @property
+    def origin(self):
+        try:
+            return self.module.origin()
+        except AttributeError as e:
+            printw('Module "{}" had an error while obtaining origin: {}'.format(self._name, e))
+            return 'Module "{}" had an error while obtaining origin: {}'.format(self._name, e)
+
+
     def parse(self, args):
         return self.module.parse(args)
 

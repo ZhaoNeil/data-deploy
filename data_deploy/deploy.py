@@ -38,6 +38,7 @@ def deploy_cli(key_path=None, paths=[], dest=defaults.remote_dir(), silent=False
         printe('Could not find a plugin named "{}"'.format(plugin))
         return False
     plugin = registrar.get(plugin)
+    print('Plugin fetched: {}'.format(plugin.path))
     state, args, kwargs = plugin.parse(args)
     if not state:
         printe('Could not parse provided arguments: {}'.format(args))

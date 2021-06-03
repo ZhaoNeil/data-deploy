@@ -14,7 +14,6 @@ from data_deploy.internal.util.printer import *
 '''Deploys data by sending all data from the local machine to one remote (the 'admin') in parallel. The admin then sends all data in parallel to all other nodes.
 Works well if local->local connections don't bottleneck.'''
 
-
 def _merge_kwargs(x, y):
     z = x.copy()
     z.update(y)
@@ -40,7 +39,7 @@ def _pick_admin(reservation, admin=None):
 
 
 
-def _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, silent):
+def _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent):
     if not silent:
         print('Transferring data...')
 
@@ -89,6 +88,10 @@ def description():
     return "Deploys data by sending all data from the local machine to one remote (the 'admin') in parallel. The admin then sends all data in parallel to all other nodes. Works well if local->local connections don't bottleneck."
 
 
+def origin():
+    return "Default implementation."
+
+
 def parse(args):
     parser = argparse.ArgumentParser(prog='...')
     parser.add_argument('--admin', metavar='id', dest='admin_id', type=int, default=None, help='ID of the node that will be the primary or admin node.')
@@ -96,8 +99,8 @@ def parse(args):
     return True, [], {'admin_id': args.admin_id}
 
 
-def execute(reservation, key_path, paths, dest, silent, *args, connectionwrapper=None, **kwargs):
-    connectionwrappers = kwargs.get('connectionwrappers')
+def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
+    connectionwrapper = kwargs.get('connectionwrapper')
     admin_id = kwargs.get('admin_id')
 
     admin_node, _ = _pick_admin(reservation, admin=admin_id)
@@ -112,7 +115,7 @@ def execute(reservation, key_path, paths, dest, silent, *args, connectionwrapper
         if not connectionwrapper.open:
             raise ValueError('Provided connection is not open.')
 
-    retval = _deploy_internal(connectionwrapper, admin_node, reservation, paths, dest, silent)
+    retval = _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent)
     if not use_local_connections:
-        _close_connections(connectionwrappers)
+        ssh_wrapper.close_wrappers([connectionwrapper])
     return retval

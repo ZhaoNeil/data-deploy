@@ -44,6 +44,10 @@ def description():
     return "Deploys data by sending all data from the local machine to all remotes in parallel. Works well if bandwidth and local->remote connections don't bottleneck."
 
 
+def origin():
+    return "Default implementation."
+
+
 def parse(args):
     parser = argparse.ArgumentParser(prog='...')
     # We have no extra arguments to add here.
@@ -68,5 +72,5 @@ def execute(reservation, key_path, paths, dest, silent, *args, **kwargs):
 
     retval = _execute_internal(connectionwrappers, reservation, key_path, paths, dest, silent)
     if not use_local_connections:
-        _close_connections(connectionwrappers)
+        ssh_wrapper.close_wrappers(connectionwrappers)
     return retval

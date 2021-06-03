@@ -10,5 +10,6 @@ def list():
 '''    Name: {}
     Path: {}
     Description: {}
-'''.format(plugin.name, plugin.path, plugin.description))
+    Origin: {}
+'''.format(plugin.name, plugin.path, plugin.description, plugin.origin))
     return True
