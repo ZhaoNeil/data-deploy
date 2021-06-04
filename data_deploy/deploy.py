@@ -4,6 +4,7 @@ import data_deploy.cli.util as _cli_util
 import data_deploy.internal.defaults.deploy as defaults
 from data_deploy.internal.platform.registrar import Registrar
 from data_deploy.internal.platform.platform import register_plugins
+from data_deploy.internal.util.printer import *
 
 
 def _clean_dest(dest):

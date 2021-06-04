@@ -8,7 +8,7 @@ def link_single(connection, sourcefile, num_links=1, silent=False):
         sourcefile (str): Path to file to make hardlinks for.
         num_links (int): Amount of hardlinks to generate.
         silent (optional bool): If set, never prints. Otherwise, prints on error.'''
-   if num_links > 0:
+    if num_links > 0:
         cmd = '''python3 -c "
 import itertools
 import os

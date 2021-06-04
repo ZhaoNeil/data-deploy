@@ -4,7 +4,9 @@ import subprocess
 
 import remoto
 
-import data_deploy
+
+import data_deploy.shared.copy
+import data_deploy.shared.link
 import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
@@ -39,19 +41,20 @@ def _execute_internal(wrappers, reservation, key_path, paths, dest, silent, copy
             printe('Could not tranfer data to some nodes.')
             return False
 
+        paths_remote = [fs.join(dest, fs.basename(path)) for path in paths]
+
         copies_amount = max(1, copy_multiplier) - 1
         links_amount = max(1, link_multiplier) - 1
         if copies_amount > 0:
-            futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, connection, dest_file, copies_amount, silent=False) for connection in wrappers.values()]
+            futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, connection, path, copies_amount, silent=False) for connection in wrappers.values() for path in paths_remote]
             if not all(x.result() for x in futures_copy):
                 return False
 
         if links_amount > 0:
-            expression = data_deploy.shared.copy.copy_expression(dest_file, copies_amount) # all files, including copies
-            futures_link = [executor.submit(data_deploy.shared.link.link, connection, expression=expression, links_amount, silent=False) for connection in wrappers.values()]
+            futures_link = [executor.submit(data_deploy.shared.link.link, connection, expression=data_deploy.shared.copy.copy_expression(dest_file, copies_amount), num_links=links_amount, silent=False) for connection in wrappers.values() for path in paths_remote]
             if not all(x.result() for x in futures_link):
                 return False
-       return True
+    return True
 
 
 def description():

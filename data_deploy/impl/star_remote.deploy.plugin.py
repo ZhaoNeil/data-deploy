@@ -4,6 +4,8 @@ import subprocess
 
 import remoto
 
+import data_deploy.shared.copy
+import data_deploy.shared.link
 import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
@@ -41,7 +43,7 @@ def _pick_admin(reservation, admin=None):
 
 def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier):
     if not silent:
-        print('Transferring data...')
+        print('Transferring data ({} copies, {} links)...'.format(copy_multiplier, link_multiplier))
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(paths)) as executor:
         if not remoto.process.check(wrappers[admin_node].connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
@@ -54,9 +56,9 @@ def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, co
             if not silent:
                 printe('Could not transfer data to admin node.')
             return False
-    star_nodes = [x for x in reservation.nodes if x != admin_node]
-    paths_remote = (fs.join(dest, fs.basename(path)) for path in paths)
-    star_cmd = '''python3 -c "
+        star_nodes = [x for x in reservation.nodes if x != admin_node]
+        paths_remote = [fs.join(dest, fs.basename(path)) for path in paths]
+        star_cmd = '''python3 -c "
 import concurrent.futures
 import subprocess
 hostnames = [{0}]
@@ -72,30 +74,32 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=len(hostnames)) as execut
         print('Could not transfer data to some nodes.')
         exit(1)
 exit(0)
-"
-'''.format(
-    ','.join("'{}'".format(x.hostname) for x in star_nodes),
-    dest,
-    ','.join("'{}'".format(x) for x in paths_remote))
+    "
+    '''.format(
+        ','.join("'{}'".format(x.hostname) for x in star_nodes),
+        dest,
+        ','.join("'{}'".format(x) for x in paths_remote))
 
-    out, error, exitcode = remoto.process.check(wrappers[admin_node].connection, star_cmd, shell=True)
-    if exitcode != 0:
-        if not silent:
-            printe('Could not transfer data from admin to all other nodes. Exitcode={}.\nOut={}\nError={}'.format(exitcode, out, error))
-        return False
-
-    copies_amount = max(1, copy_multiplier) - 1
-    links_amount = max(1, link_multiplier) - 1
-    if copies_amount > 0:
-        futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, connection, dest_file, copies_amount, silent=False) for connection in wrappers.values()]
-        if not all(x.result() for x in futures_copy):
+        out, error, exitcode = remoto.process.check(wrappers[admin_node].connection, star_cmd, shell=True)
+        if exitcode != 0:
+            if not silent:
+                printe('Could not transfer data from admin to all other nodes. Exitcode={}.\nOut={}\nError={}'.format(exitcode, out, error))
             return False
 
-    if links_amount > 0:
-        expression = data_deploy.shared.copy.copy_expression(dest_file, copies_amount) # all files, including copies
-        futures_link = [executor.submit(data_deploy.shared.link.link, connection, expression=expression, links_amount, silent=False) for connection in wrappers.values()]
-        if not all(x.result() for x in futures_link):
-            return False
+        copies_amount = max(1, copy_multiplier) - 1
+        links_amount = max(1, link_multiplier) - 1
+        if copies_amount > 0:
+            futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, wrapper.connection, path, copies_amount, silent=False) for wrapper in wrappers.values() for path in paths_remote]
+            if not all(x.result() for x in futures_copy):
+                if not silent:
+                    printe('Could not create copies on all nodes.')
+                return False
+        if links_amount > 0:
+            futures_link = [executor.submit(data_deploy.shared.link.link, wrapper.connection, expression=data_deploy.shared.copy.copy_expression(path, copies_amount), num_links=links_amount, silent=False) for wrapper in wrappers.values() for path in paths_remote]
+            if not all(x.result() for x in futures_link):
+                if not silent:
+                    printe('Could not create links on all nodes.')
+                return False
     return True
 
 
@@ -130,6 +134,6 @@ def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_mu
             raise ValueError('Not all provided connections are open.')
 
     retval = _execute_internal(connectionwrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier)
-    if not use_local_connections:connectionwrappers
+    if not use_local_connections:
         ssh_wrapper.close_wrappers(connectionwrappers)
     return retval
