@@ -39,19 +39,20 @@ def _pick_admin(reservation, admin=None):
 
 
 
-def _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier):
+def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier):
     if not silent:
         print('Transferring data...')
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(paths)) as executor:
-        if not remoto.process.check(connectionwrapper.connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
+        if not remoto.process.check(wrappers[admin_node].connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
             printe('Could not create data destination directory on admin node.')
             return False
 
         fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAX --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
-        futures_rsync = [executor.submit(fun, path, admin_node, connectionwrapper) for path in paths]
+        futures_rsync = [executor.submit(fun, path, admin_node, wrappers[admin_node]) for path in paths]
         if not all(x.result() for x in futures_rsync):
-            printe('Could not transfer data to admin node.')
+            if not silent:
+                printe('Could not transfer data to admin node.')
             return False
     star_nodes = [x for x in reservation.nodes if x != admin_node]
     paths_remote = (fs.join(dest, fs.basename(path)) for path in paths)
@@ -77,11 +78,25 @@ exit(0)
     dest,
     ','.join("'{}'".format(x) for x in paths_remote))
 
-    out, error, exitcode = remoto.process.check(connectionwrapper.connection, star_cmd, shell=True)
-    if exitcode == 0:
-        return True
-    printe('Could not transfer data from admin to all other nodes. Exitcode={}.\nOut={}\nError={}'.format(exitcode, out, error))
-    return False
+    out, error, exitcode = remoto.process.check(wrappers[admin_node].connection, star_cmd, shell=True)
+    if exitcode != 0:
+        if not silent:
+            printe('Could not transfer data from admin to all other nodes. Exitcode={}.\nOut={}\nError={}'.format(exitcode, out, error))
+        return False
+
+    copies_amount = max(1, copy_multiplier) - 1
+    links_amount = max(1, link_multiplier) - 1
+    if copies_amount > 0:
+        futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, connection, dest_file, copies_amount, silent=False) for connection in wrappers.values()]
+        if not all(x.result() for x in futures_copy):
+            return False
+
+    if links_amount > 0:
+        expression = data_deploy.shared.copy.copy_expression(dest_file, copies_amount) # all files, including copies
+        futures_link = [executor.submit(data_deploy.shared.link.link, connection, expression=expression, links_amount, silent=False) for connection in wrappers.values()]
+        if not all(x.result() for x in futures_link):
+            return False
+    return True
 
 
 def description():
@@ -100,22 +115,21 @@ def parse(args):
 
 
 def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier, *args, **kwargs):
-    connectionwrapper = kwargs.get('connectionwrapper')
+    connectionwrappers = kwargs.get('connectionwrappers')
     admin_id = kwargs.get('admin_id')
 
     admin_node, _ = _pick_admin(reservation, admin=admin_id)
-    use_local_connections = connectionwrapper == None
+    use_local_connections = connectionwrappers == None
     if use_local_connections: # We did not get any connections, so we must make them
         ssh_kwargs = {'IdentitiesOnly': 'yes', 'StrictHostKeyChecking': 'no'}
         if key_path:
             ssh_kwargs['IdentityFile'] = key_path
-
-        connectionwrapper = ssh_wrapper.get_wrapper(admin_node, admin_node.ip_public, ssh_params=_merge_kwargs(ssh_kwargs, {'User': admin_node.extra_info['user']}), silent=silent)
+        connectionwrappers = ssh_wrapper.get_wrappers(reservation.nodes, lambda node: node.ip_public, ssh_params=lambda node: _merge_kwargs(ssh_kwargs, {'User': node.extra_info['user']}), silent=silent)
     else: # We received connections, need to check if they are valid.
-        if not connectionwrapper.open:
-            raise ValueError('Provided connection is not open.')
+        if not all(x.open for x in connectionwrappers):
+            raise ValueError('Not all provided connections are open.')
 
-    retval = _execute_internal(connectionwrapper, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier)
-    if not use_local_connections:
-        ssh_wrapper.close_wrappers([connectionwrapper])
+    retval = _execute_internal(connectionwrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier)
+    if not use_local_connections:connectionwrappers
+        ssh_wrapper.close_wrappers(connectionwrappers)
     return retval

@@ -4,6 +4,7 @@ import subprocess
 
 import remoto
 
+import data_deploy
 import data_deploy.internal.defaults.deploy as defaults
 import data_deploy.internal.remoto.ssh_wrapper as ssh_wrapper
 import data_deploy.internal.util.fs as fs
@@ -37,7 +38,20 @@ def _execute_internal(wrappers, reservation, key_path, paths, dest, silent, copy
         if not all(x.result() for x in futures_rsync):
             printe('Could not tranfer data to some nodes.')
             return False
-        return True
+
+        copies_amount = max(1, copy_multiplier) - 1
+        links_amount = max(1, link_multiplier) - 1
+        if copies_amount > 0:
+            futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, connection, dest_file, copies_amount, silent=False) for connection in wrappers.values()]
+            if not all(x.result() for x in futures_copy):
+                return False
+
+        if links_amount > 0:
+            expression = data_deploy.shared.copy.copy_expression(dest_file, copies_amount) # all files, including copies
+            futures_link = [executor.submit(data_deploy.shared.link.link, connection, expression=expression, links_amount, silent=False) for connection in wrappers.values()]
+            if not all(x.result() for x in futures_link):
+                return False
+       return True
 
 
 def description():
