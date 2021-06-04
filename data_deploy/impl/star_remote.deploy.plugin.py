@@ -40,12 +40,11 @@ def _pick_admin(reservation, admin=None):
         return tmp[0], tmp[1:]
 
 
-
 def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier):
     if not silent:
-        print('Transferring data ({} copies, {} links)...'.format(copy_multiplier, link_multiplier))
+        print('Transferring data...'.format(copy_multiplier, link_multiplier))
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=len(paths)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(wrappers)) as executor:
         if not remoto.process.check(wrappers[admin_node].connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
             printe('Could not create data destination directory on admin node.')
             return False

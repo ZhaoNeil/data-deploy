@@ -76,7 +76,7 @@ def deploy(reservation, key_path=None, paths=[], dest=defaults.remote_dir(), sil
     registrar = Registrar()
     register_plugins(registrar)
     print('Found {} plugins.'.format(len(registrar)))
-    
+
     if not plugin in registrar.names:
         printe('Could not find a plugin named "{}"'.format(plugin))
         return False
