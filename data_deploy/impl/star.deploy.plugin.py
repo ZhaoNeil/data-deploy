@@ -33,7 +33,7 @@ def _execute_internal(wrappers, reservation, key_path, paths, dest, silent, copy
             printe('Could not create data destination directory for all nodes.')
             return False
 
-        fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAX --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
+        fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
         futures_rsync = []
         for path in paths:
             futures_rsync += [executor.submit(fun, path, node, wrapper) for node, wrapper in wrappers.items()]

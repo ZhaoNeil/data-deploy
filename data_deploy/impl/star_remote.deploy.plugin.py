@@ -49,7 +49,7 @@ def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, co
             printe('Could not create data destination directory on admin node.')
             return False
 
-        fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAX --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
+        fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
         futures_rsync = [executor.submit(fun, path, admin_node, wrappers[admin_node]) for path in paths]
         if not all(x.result() for x in futures_rsync):
             if not silent:
