@@ -48,6 +48,9 @@ def _execute_internal(wrappers, admin_node, reservation, paths, dest, silent, co
         if not remoto.process.check(wrappers[admin_node].connection, 'mkdir -p {}'.format(dest), shell=True)[2] == 0:
             printe('Could not create data destination directory on admin node.')
             return False
+        if not remoto.process.check(wrappers[admin_node].connection, 'rm -rf {}/*'.format(dest), shell=True)[2] == 0:
+            printe('Could not remove old data from destination directory on admin node.')
+            return False
 
         fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
         futures_rsync = [executor.submit(fun, path, admin_node, wrappers[admin_node]) for path in paths]
@@ -67,6 +70,10 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=len(hostnames)) as execut
     futures_mkdir = [executor.submit(subprocess.call, 'ssh {{}} \\'mkdir -p {{}}\\''.format(x, sourcedir), shell=True) for x in hostnames]
     if not all(x.result() == 0 for x in futures_mkdir):
         print('Could not create data destination directory for all nodes.')
+        exit(1)
+    futures_rm = [executor.submit(subprocess.call, 'ssh {{}} \\'rm -rf {{}}/*\\''.format(x, sourcedir), shell=True) for x in hostnames]
+    if not all(x.result() == 0 for x in futures_rm):
+        print('Could not remove old data from destination directory for all nodes.')
         exit(1)
     futures_rsync = [executor.submit(subprocess.call, 'rsync -q -aHAX --inplace {{}} {{}}:{{}}'.format(path, hostname, path), shell=True) for hostname in hostnames for path in paths_remote]
     if not all(x.result() == 0 for x in futures_rsync):
@@ -128,9 +135,12 @@ def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_mu
         if key_path:
             ssh_kwargs['IdentityFile'] = key_path
         connectionwrappers = ssh_wrapper.get_wrappers(reservation.nodes, lambda node: node.ip_public, ssh_params=lambda node: _merge_kwargs(ssh_kwargs, {'User': node.extra_info['user']}), silent=silent)
-    else: # We received connections, need to check if they are valid.
-        if not all(x.open for x in connectionwrappers):
-            raise ValueError('Not all provided connections are open.')
+    else:
+        if len(connectionwrappers) != len(reservation):
+            raise ValueError('Provided connections do not contain all nodes: reservation length={}, connections amount={}'.format(len(connectionwrappers), len(reservation)))
+    if not all(x.open for x in connectionwrappers.values()):
+        printe('Not all provided connections are open.')
+        return False
 
     retval = _execute_internal(connectionwrappers, admin_node, reservation, paths, dest, silent, copy_multiplier, link_multiplier)
     if not use_local_connections:

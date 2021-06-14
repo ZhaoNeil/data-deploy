@@ -32,6 +32,10 @@ def _execute_internal(wrappers, reservation, key_path, paths, dest, silent, copy
         if not all(x.result()[2] == 0 for x in futures_mkdir):
             printe('Could not create data destination directory for all nodes.')
             return False
+        futures_rm = [executor.submit(remoto.process.check, x.connection, 'rm -rf {}/*'.format(dest), shell=True) for x in wrappers.values()]
+        if not all(x.result()[2] == 0 for x in futures_rm):
+            printe('Could not remove old data from destination directory for all nodes.')
+            return False
 
         fun = lambda path, node, wrapper: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(wrapper.ssh_config_path, path, node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
         futures_rsync = []
@@ -84,8 +88,10 @@ def execute(reservation, key_path, paths, dest, silent, copy_multiplier, link_mu
     else: # We received connections, need to check if they are valid.
         if len(connectionwrappers) != len(reservation):
             raise ValueError('Provided connections do not contain all nodes: reservation length={}, connections amount={}'.format(len(connectionwrappers), len(reservation)))
-        if not all(x.open for x in connectionwrappers):
-            raise ValueError('Some provided connections are closed.')
+    if not all(x.open for x in connectionwrappers.values()):
+        printe('Not all provided connections are open.')
+        return False
+
 
     retval = _execute_internal(connectionwrappers, reservation, key_path, paths, dest, silent, copy_multiplier, link_multiplier)
     if not use_local_connections:

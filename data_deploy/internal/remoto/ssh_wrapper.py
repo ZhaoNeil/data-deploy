@@ -35,7 +35,7 @@ class RemotoSSHWrapper(object):
     @property
     def open(self):
         '''If set, connection is open. Otherwise, Connection is closed'''
-        return self._open
+        return self._open and self._connection != None
     
 
     def __exit__(self, exc_type, exc_val, exc_tb):
