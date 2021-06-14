@@ -60,7 +60,7 @@ def clean(reservation, key_path=None, connectionwrappers=None, paths=[], silent=
             close_wrappers(connectionwrappers)
         return True
 
-    retval = _clean_internal(connectionwrappers, (_clean_dest(x) for x in paths))
+    retval = _clean_internal(connectionwrappers, [_clean_dest(x) for x in paths])
     if local_connections:
         close_wrappers(connectionwrappers)
     if not silent:
