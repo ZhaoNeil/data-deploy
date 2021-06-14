@@ -1,4 +1,5 @@
 import remoto
+from data_deploy.internal.util.printer import *
 
 
 def copy_expression(sourcefile, num_copies):

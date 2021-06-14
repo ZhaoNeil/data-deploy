@@ -1,4 +1,5 @@
 import remoto
+from data_deploy.internal.util.printer import *
 
 
 def link_single(connection, sourcefile, num_links=1, silent=False):
