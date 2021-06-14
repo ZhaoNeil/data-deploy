@@ -12,9 +12,10 @@ import data_deploy
 
 
 def _get_modules():
+    import data_deploy.cli.clean as clean
     import data_deploy.cli.deploy as deploy
     import data_deploy.cli.plugin as plugin
-    return [deploy, plugin]
+    return [deploy, clean, plugin]
 
 
 def generic_args(parser):

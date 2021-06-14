@@ -2,12 +2,12 @@ import concurrent.futures
 import tempfile
 import uuid
 
-from rados_deploy.thirdparty.sshconf import *
+from data_deploy.thirdparty.sshconf import *
 
 import logging
 import remoto
 
-from rados_deploy.internal.util.printer import *
+from data_deploy.internal.util.printer import *
 
 
 class RemotoSSHWrapper(object):
@@ -44,10 +44,12 @@ class RemotoSSHWrapper(object):
 
 
     def exit(self):
-        self._connection.exit()
+        if self._connection:
+            self._connection.exit()
         if self._ssh_config:
             self._ssh_config.close()
         self._open = False
+
 
 
 def _build_ssh_config(hostname, ssh_params):

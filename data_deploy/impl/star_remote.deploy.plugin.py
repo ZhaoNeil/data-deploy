@@ -95,17 +95,19 @@ exit(0)
         copies_amount = max(1, copy_multiplier) - 1
         links_amount = max(1, link_multiplier) - 1
         if copies_amount > 0:
-            futures_copy = [executor.submit(data_deploy.shared.copy.copy_single, wrapper.connection, path, copies_amount, silent=False) for wrapper in wrappers.values() for path in paths_remote]
-            if not all(x.result() for x in futures_copy):
-                if not silent:
-                    printe('Could not create copies on all nodes.')
-                return False
+            futures_copy = {node: executor.submit(data_deploy.shared.copy.copy_single, wrapper.connection, path, copies_amount, silent=False) for node, wrapper in wrappers.items() for path in paths_remote}
+            for k,v in futures_copy.items():
+                if not v.result():
+                    if not silent:
+                        printe('Could not create copies on node: {}'.format(k))
+                    return False
         if links_amount > 0:
-            futures_link = [executor.submit(data_deploy.shared.link.link, wrapper.connection, expression=data_deploy.shared.copy.copy_expression(path, copies_amount), num_links=links_amount, silent=False) for wrapper in wrappers.values() for path in paths_remote]
-            if not all(x.result() for x in futures_link):
-                if not silent:
-                    printe('Could not create links on all nodes.')
-                return False
+            futures_link = {node: executor.submit(data_deploy.shared.link.link, wrapper.connection, expression=data_deploy.shared.copy.copy_expression(path, copies_amount), num_links=links_amount, silent=False) for node, wrapper in wrappers.items() for path in paths_remote}
+            for k,v in futures_link.items():
+                if not v.result():
+                    if not silent:
+                        printe('Could not create links on all nodes.')
+                    return False
     return True
 
 
