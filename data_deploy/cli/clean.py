@@ -9,6 +9,7 @@ def subparser(subparsers):
     '''Register subparser modules'''
     cleanparser = subparsers.add_parser('clean', help='Clean data on a cluster.')
     cleanparser.add_argument('--paths', metavar='paths', nargs='+', default=[defaults.remote_dir()], help='Remote paths to remove  (default={}). Wildcards are forwarded. Pointed locations can be files or directories. Separate locations using spaces.'.format(defaults.remote_dir()))
+    cleanparser.add_argument('--sudo', help='If set, uses sudo to clean.', action='store_true')
     cleanparser.add_argument('--silent', help='If set, less boot output is shown.', action='store_true')
     return [cleanparser]
 
@@ -24,4 +25,4 @@ def deploy_args_set(args):
 
 def deploy(parsers, args):
     reservation = _cli_util.read_reservation_cli()
-    return clean(reservation, key_path=args.key_path, paths=args.paths, silent=args.silent) if reservation else False
+    return clean(reservation, key_path=args.key_path, paths=args.paths, sudo=args.sudo, silent=args.silent) if reservation else False

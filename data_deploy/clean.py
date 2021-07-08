@@ -28,18 +28,19 @@ def _merge_kwargs(x, y):
     return z
 
 
-def _clean_internal(connectionwrappers, paths):
+def _clean_internal(connectionwrappers, paths, sudo):
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(connectionwrappers)) as executor:
-        futures_rm = [executor.submit(remoto.process.check, connectionwrapper.connection, 'rm -rf {}'.format(path), shell=True) for connectionwrapper in connectionwrappers.values() for path in paths]
+        futures_rm = [executor.submit(remoto.process.check, connectionwrapper.connection, '{}rm -rf {}'.format('sudo ' if sudo else '', path), shell=True) for connectionwrapper in connectionwrappers.values() for path in paths]
         return all(x.result()[2] == 0 for x in futures_rm)
 
 
-def clean(reservation, key_path=None, connectionwrappers=None, paths=[], silent=False):
+def clean(reservation, key_path=None, connectionwrappers=None, paths=[], sudo=False, silent=False):
     '''Deploy data using the CLI. Loads plugin with given `plugin` name, parses args, executes.
     Args:
         key_path (optional str): If set, uses given key to connect to remote nodes.
         connectionwrappers (optional dict(metareserve.Node, RemotoSSHWrapper)): If set, uses given connections, instead of building new ones.
         paths (optional list): Remote data paths to remove.
+        sudo (optional bool): If set, uses sudo to clean remote paths.
         silent (optional bool): If set, does not print so much.
 
     Returns:
@@ -60,7 +61,7 @@ def clean(reservation, key_path=None, connectionwrappers=None, paths=[], silent=
             close_wrappers(connectionwrappers)
         return True
 
-    retval = _clean_internal(connectionwrappers, [_clean_dest(x) for x in paths])
+    retval = _clean_internal(connectionwrappers, [_clean_dest(x) for x in paths], sudo)
     if local_connections:
         close_wrappers(connectionwrappers)
     if not silent:
