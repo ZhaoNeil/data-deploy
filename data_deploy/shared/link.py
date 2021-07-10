@@ -2,11 +2,11 @@ import remoto
 from data_deploy.internal.util.printer import *
 
 
-def link_single(connection, sourcefile, num_links=1, silent=False):
+def link_single(connection, source_file, num_links=1, silent=False):
     '''Makes a hardlink to a file `num_links` times. For a file named "X", we generate hardlinks named "X.link.0", "X.link.1", ....
     Args:
         connection (remoto.Connection): Connection to remote to execute on.
-        sourcefile (str): Path to file to make hardlinks for.
+        source_file (str): Path to file to make hardlinks for.
         num_links (int): Amount of hardlinks to generate.
         silent (optional bool): If set, never prints. Otherwise, prints on error.'''
     if num_links > 0:
@@ -21,11 +21,11 @@ for x in range({1}):
     os.link(pointedloc, pointerloc)
 exit(0)
 "
-'''.format(sourcefile, num_links)
+'''.format(source_file, num_links)
         out, error, exitcode = remoto.process.check(connection, cmd, shell=True)
         if exitcode != 0:
             if not silent:
-                printe('Could not add hardlinks for file: {}.\nReason: Out: {}\n\nError: {}'.format(dest_file, '\n'.join(out), '\n'.join(error)))
+                printe('Could not add hardlinks for file: {}.\nReason: Out: {}\n\nError: {}'.format(source_file, '\n'.join(out), '\n'.join(error)))
             return False
     return True
 
@@ -66,6 +66,6 @@ exit(0)
         out, error, exitcode = remoto.process.check(connection, cmd, shell=True)
         if exitcode != 0:
             if not silent:
-                printe('Could not add hardlinks for file: {}.\nReason: Out: {}\n\nError: {}'.format(dest_file, '\n'.join(out), '\n'.join(error)))
+                printe('Could not add hardlinks for file expression: {}.\nReason: Out: {}\n\nError: {}'.format(expression, '\n'.join(out), '\n'.join(error)))
             return False
     return True
