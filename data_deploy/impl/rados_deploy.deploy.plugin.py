@@ -86,17 +86,28 @@ exit(0 if all(results) else 1)
 
 
 def _post_deploy_remote_file(connection, stripe, copies_amount, links_amount, source_file, dest_file):
+#     if copies_amount > 0:
+#         cmd = '''python3 -c "
+# import subprocess
+# import concurrent.futures
+# from multiprocessing import cpu_count
+# with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count()-1) as executor:
+#     futures_rsync = [executor.submit(subprocess.call, 'rsync -q -aHAX --inplace {0} {{}}'.format(x), shell=True) for x in ('{0}.copy.{{}}'.format(x) for x in range({1}))]
+#     results = [x.result() == 0 for x in futures_rsync]
+# exit(0 if all(results) else 1)
+# "
+# '''.format(dest_file, copies_amount)
     if copies_amount > 0:
         cmd = '''python3 -c "
 import subprocess
 import concurrent.futures
 from multiprocessing import cpu_count
 with concurrent.futures.ThreadPoolExecutor(max_workers=cpu_count()-1) as executor:
-    futures_rsync = [executor.submit(subprocess.call, 'rsync -q -aHAX --inplace {0} {{}}'.format(x), shell=True) for x in ('{0}.copy.{{}}'.format(x) for x in range({1}))]
+    futures_rsync = [executor.submit(subprocess.call, 'ssh -F {} ubuntu@{} "wget -P {} {}"'.format(connectionwrapper.ssh_config.name, admin_node.ip_public, fs.join(dest, fs.basename(path)), "https://ceph-dataset.s3.eu-central-1.amazonaws.com/jayjeet_128mb.pq"), shell=True)]
     results = [x.result() == 0 for x in futures_rsync]
 exit(0 if all(results) else 1)
 "
-'''.format(dest_file, copies_amount)
+'''
         _, _, exitcode = remoto.process.check(connection, cmd, shell=True)
         if exitcode != 0:
             printe('Could not inflate dataset using {} copies of file at cluster: {}. Is there enough space?'.format(copies_amount, dest_file))
@@ -143,7 +154,8 @@ def _execute_internal(connectionwrapper, reservation, paths, dest, silent, copy_
 
         if not silent:
             print('Transferring data...')
-        fun = lambda path: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(connectionwrapper.ssh_config.name, path, admin_node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
+        # fun = lambda path: subprocess.call('rsync -e "ssh -F {}" -q -aHAXL --inplace {} {}:{}'.format(connectionwrapper.ssh_config.name, path, admin_node.ip_public, fs.join(dest, fs.basename(path))), shell=True) == 0
+        fun = lambda path: subprocess.call('ssh -F {} ubuntu@{} "wget -P {} {}"'.format(connectionwrapper.ssh_config.name, admin_node.ip_public, fs.join(dest, fs.basename(path)), "https://ceph-dataset.s3.eu-central-1.amazonaws.com/jayjeet_128mb.pq"), shell=True) == 0
         futures_rsync = {path: executor.submit(fun, path) for path in paths}
 
         state_ok = True
